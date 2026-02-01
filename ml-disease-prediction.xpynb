@@ -1,0 +1,105 @@
+# This Python 3 environment comes with many helpful analytics libraries installed
+# It is defined by the kaggle/python Docker image: https://github.com/kaggle/docker-python
+# For example, here's several helpful packages to load
+
+import numpy as np # linear algebra
+import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
+
+# Input data files are available in the read-only "../input/" directory
+# For example, running this (by clicking run or pressing Shift+Enter) will list all files under the input directory
+
+import os
+for dirname, _, filenames in os.walk('/kaggle/input'):
+    for filename in filenames:
+        print(os.path.join(dirname, filename))
+
+# You can write up to 20GB to the current directory (/kaggle/working/) that gets preserved as output when you create a version using "Save & Run All" 
+# You can also write temporary files to /kaggle/temp/, but they won't be saved outside of the current session
+
+
+#--------------------------------------------------------------------------------------------ORIGINAL CODE-----------------------------------------------------------------
+#NOTE: THIS CODE IS COMMENT-HEAVY IN DETAIL FOR THE READER TO UNDERSTAND WITHOUT ANY PRIOR EXPERIENCE AND ONLY VERY BASIC PYTHON KNOWLEDGE IS NEEDED
+
+#import os means that the python can read the stuff/files in ur pc
+import os
+#listdir means list directory, so where the list is stored in files is here, and this confirms the exact path of the files so they can be loaded later on
+os.listdir("/kaggle/input/disease-prediction-using-machine-learning")
+
+#here were js importing pandas (library for tabular data in py) and calling it pd for simplicity
+import pandas as pd
+
+# "pd.read_csv" reads a csv (comma separated values) into a pandas dataframe, which is the table of rows (patients) * the columns (symptoms + disease label)
+#train = saves the data in this variable train where the model will learn from
+#test = saves the test data in this var to eventually test the model
+train = pd.read_csv(
+    "/kaggle/input/disease-prediction-using-machine-learning/Training.csv"
+)
+
+test = pd.read_csv(
+    "/kaggle/input/disease-prediction-using-machine-learning/Testing.csv"
+)
+
+#this just shows the first 5 rows (the head) of the dataframe to make sure it works. run this as a test
+train.head()
+
+
+#this code removes the prognosis column for the training data for the intuitive reason that when training the model we don't wanna just give it the answer. 
+#the axis = 1 means that we drop the column not the row
+x_train = train.drop("prognosis", axis = 1)
+#this takes only the disease label and saves it as this var so that the model can predict y_train from x_train and y_test from x_test
+y_train = train["prognosis"]
+
+#this code removes the prognosis column for the training data for the intuitive reason that when training the model we don't wanna just give it the answer. 
+#the axis = 1 means that we drop the column not the row
+x_test = test.drop("prognosis", axis = 1)
+#this takes only the disease label and saves it as this var so that the model can predict y_train from x_train and y_test from x_test
+y_test = test["prognosis"]
+#summary of the above --> X_train = practice questions, y_train = answer key for practice, X_test = new questions, y_test = real answers to see if you learned
+
+#this does the same thing just for the train and test sets respectively. the x gives the dimensions of the training features dataframe. outputs are (number of rows, number of columns) aka
+#(4920, 133) in the training dataset. rows = number of patients in training set. columns = number of symptoms/features. the y gives the dimensions of the training labels series.
+#output is (4920,) → 4920 labels (diseases), one for each patient.
+print(x_train.shape, y_train.shape)
+print(x_test.shape, y_test.shape)
+
+#this is gonna remove extra columns that came from the csv. x_train.columns is the list of column names and .str.contains('^Unnamed') is a boolean that checks what columns are unamed
+#the tilda ~ negates the boolean, so only columns that are not unnamed are kept. .loc[:, ...] selects all rows: and only the columns we want. x_train now only contains real data
+x_train = x_train.loc[:, ~x_train.columns.str.contains('^Unnamed')]
+x_test = x_test.loc[:, ~x_test.columns.str.contains('^Unnamed')]
+
+#ensure test columns are in the same order as training columns
+x_test = x_test[x_train.columns]
+
+#prints the dimensions after removing unnamed columns and aligning test columns and confirms both data sets have the same # of features like "Shapes after cleaning: (4920, 132) (42, 132)"
+print("Shapes after cleaning:", x_train.shape, x_test.shape)
+
+#randomforestclassifier is an ml model that makes decision trees and each tree makes a prediction ,with the majority of predictions being the final answer
+from sklearn.ensemble import RandomForestClassifier
+
+#creating var rf to hold our model. n_estimators = 100 means that were gonna have 100 different trees to make predictions, 
+#and random_state = 42 means that its not random and others running will get the same results
+rf = RandomForestClassifier(
+    n_estimators = 100,
+    random_state = 42
+)
+
+#this is where the training actually happens! it takes the data (x) and the labels (y) and uses those to learn patters. for example itll notice that when fever = 1 and cough = 1 ->
+#the likely disease is the flu. it uses this data and then makes patterns by connecting the data so that predictions can be made in the future
+rf.fit(x_train, y_train)
+
+#now we are creating our third y variable which will do the predictions. the first part basically asks the model based on x_test (the 42 patients symptoms) what diseases do you predict?
+y_pred = rf.predict(x_test)
+#this now displays the top 5 predictions, which we will check for accuracy
+y_pred[:5]
+
+#we js needa import this to do the accuracy check
+from sklearn.metrics import accuracy_score
+#creating the var acc to compare the models predictions with the right answers and itll make a fraction like 0.95 for 95% accuracy
+acc = accuracy_score(y_test, y_pred)
+print("Accuracy: ", acc)
+
+#we needa important this to do the classification report
+from sklearn.metrics import classification_report
+#this is where we actually make this useful. instead of justing predicting diseases, some right, some wrong, we can get some real data.
+#we get metrics like precision (ex. of all the predicted flu cases, how many were accurate) + recall (of all the real flu cases, how many were predicted) + F1 score(balance between the other 2)
+print(classification_report(y_test, y_pred))
